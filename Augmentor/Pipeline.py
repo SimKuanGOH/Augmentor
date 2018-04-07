@@ -43,7 +43,7 @@ class Pipeline(object):
     _valid_formats = ["PNG", "BMP", "GIF", "JPEG"]
     _legal_filters = ["NEAREST", "BICUBIC", "ANTIALIAS", "BILINEAR"]
 
-    def __init__(self, source_directory=None, output_directory="output", save_format=None):
+    def __init__(self, source_directory=None, output_directory=None, save_format=None):
         """
         Create a new Pipeline object pointing to a directory containing your
         original image dataset.
@@ -67,6 +67,7 @@ class Pipeline(object):
         :return: A :class:`Pipeline` object.
         """
         random.seed()
+        print("started!!")
 
         # TODO: Allow a single image to be added when initialising.
         # Initialise some variables for the Pipeline object.
@@ -123,7 +124,7 @@ class Pipeline(object):
                 raise IOError("The ground truth source directory you specified does not exist.")
 
         # Get absolute path for output
-        abs_output_directory = os.path.join(source_directory, output_directory)
+        abs_output_directory = output_directory#os.path.join(source_directory, output_directory)
 
         # Scan the directory that user supplied.
         self.augmentor_images, self.class_labels = scan(source_directory, abs_output_directory)
@@ -267,6 +268,20 @@ class Pipeline(object):
 
 
         if save_to_disk:
+
+            savedir = augmentor_image.output_directory
+
+            if not os.path.exists(savedir):
+                os.makedirs(savedir)
+                print ("created AugData Dir")
+            if not os.path.exists(os.path.join(savedir,'images')):
+                os.makedirs(os.path.join(savedir,'images'))
+                print ("created AugData images Dir")
+            if not os.path.exists(os.path.join(savedir,'masks')):
+                os.makedirs(os.path.join(savedir,'masks'))
+                print ("created AugData masks Dir")
+
+
             file_name = str(uuid.uuid4())
             try:
                 # TODO: Add a 'coerce' parameter to force conversion to RGB for PNGA->JPEG saving.
@@ -274,13 +289,19 @@ class Pipeline(object):
                 #     image = image.convert("RGB")
                 for i in range(len(images)):
                     if i == 0:
-                        save_name = augmentor_image.class_label + "_original_" + file_name \
+                        # save_name = augmentor_image.class_label + "_original_" + file_name \
+                        #             + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        save_name = file_name \
                                     + "." + (self.save_format if self.save_format else augmentor_image.file_format)
-                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+                        myimg_path = os.path.join(augmentor_image.output_directory,"images")
+                        images[i].save(os.path.join(myimg_path, save_name))
+                        myimg_path2 = os.path.join(augmentor_image.output_directory,"masks")
+                        images2[i].save(os.path.join(myimg_path2, save_name))
                     else:
                         save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
                                     + "." + (self.save_format if self.save_format else augmentor_image.file_format)
-                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+                        myimg_path = os.path.join(augmentor_image.output_directory,"masks")            
+                        images[i].save(os.path.join(myimg_path, save_name))
             except IOError as e:
                 print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
                 print("You can change the save format using the set_save_format(save_format) function.")
@@ -440,6 +461,45 @@ class Pipeline(object):
             for augmentor_image in self.augmentor_images:
                 if sample_count <= n:
                     self._execute(augmentor_image)
+                    file_name_to_print = os.path.basename(augmentor_image.image_path)
+                    # This is just to shorten very long file names which obscure the progress bar.
+                    if len(file_name_to_print) >= 30:
+                        file_name_to_print = file_name_to_print[0:10] + "..." + \
+                                             file_name_to_print[-10: len(file_name_to_print)]
+                    progress_bar.set_description("Processing %s" % file_name_to_print)
+                    progress_bar.update(1)
+                sample_count += 1
+        progress_bar.close()
+
+
+    def mysample(self, n):
+        """
+        Generate :attr:`n` number of samples from the current pipeline.
+
+        This function samples from the pipeline, using the original images
+        defined during instantiation. All images generated by the pipeline
+        are by default stored in an ``output`` directory, relative to the
+        path defined during the pipeline's instantiation.
+
+        :param n: The number of new samples to produce.
+        :type n: Integer
+        :return: None
+        """
+        if len(self.augmentor_images) == 0:
+            raise IndexError("There are no images in the pipeline. "
+                             "Add a directory using add_directory(), "
+                             "pointing it to a directory containing images.")
+
+        if len(self.operations) == 0:
+            raise IndexError("There are no operations associated with this pipeline.")
+
+        sample_count = 1
+
+        progress_bar = tqdm(total=n, desc="Executing Pipeline", unit=' Samples', leave=False)
+        while sample_count <= n:
+            for augmentor_image in self.augmentor_images:
+                if sample_count <= n:
+                    self._myexecute(augmentor_image)
                     file_name_to_print = os.path.basename(augmentor_image.image_path)
                     # This is just to shorten very long file names which obscure the progress bar.
                     if len(file_name_to_print) >= 30:
