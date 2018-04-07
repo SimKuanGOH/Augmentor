@@ -1,4 +1,4 @@
-This is a quick fix to modify https://github.com/mdbloice/Augmentor one-hot label to 2D masks.
+This is a quick fix to modify https://github.com/mdbloice/Augmentor one-hot labels to 2D masks.
 
 ## Installation
 ```python
@@ -26,5 +26,5 @@ p.sample(50)
 ### Generators for Keras
 ```python
 g = p.keras_generator(batch_size=128)
-images, labels = next(g)
+images, labels = next(g) # labels are 2D masks in this fork
 ```
