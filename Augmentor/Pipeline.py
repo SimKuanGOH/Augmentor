@@ -16,7 +16,7 @@ from __future__ import (absolute_import, division,
 from builtins import *
 
 from .Operations import *
-from .ImageUtilities import scan_directory, scan, scan_dataframe, AugmentorImage
+from .ImageUtilities import scan_directory, scan, AugmentorImage
 
 import os
 import sys
@@ -128,14 +128,6 @@ class Pipeline(object):
         # Scan the directory that user supplied.
         self.augmentor_images, self.class_labels = scan(source_directory, abs_output_directory)
 
-        self._check_images(abs_output_directory)
-
-    def _check_images(self, abs_output_directory):
-        """
-        Private method. Used to check and get the dimensions of all of the images
-        :param abs_output_directory: the absolute path of the output directory
-        :return:
-        """
         # Make output directory/directories
         if len(set(self.class_labels)) <= 1:  # Fixed bad bug by adding set() function here.
             if not os.path.exists(abs_output_directory):
@@ -150,6 +142,7 @@ class Pipeline(object):
                         os.makedirs(os.path.join(abs_output_directory, str(class_label[0])))
                     except IOError:
                         print("Insufficient rights to read or write output directory (%s)" % abs_output_directory)
+
         # Check the images, read their dimensions, and remove them if they cannot be read
         # TODO: Do not throw an error here, just remove the image and continue.
         for augmentor_image in self.augmentor_images:
@@ -207,11 +200,11 @@ class Pipeline(object):
                 #     image = image.convert("RGB")
                 for i in range(len(images)):
                     if i == 0:
-                        save_name = augmentor_image.class_label + "_original_" + os.path.basename(augmentor_image.image_path) + "_" + file_name \
+                        save_name = augmentor_image.class_label + "_original_" + file_name \
                                     + "." + (self.save_format if self.save_format else augmentor_image.file_format)
                         images[i].save(os.path.join(augmentor_image.output_directory, save_name))
                     else:
-                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + os.path.basename(augmentor_image.image_path) + "_" + file_name \
+                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
                                     + "." + (self.save_format if self.save_format else augmentor_image.file_format)
                         images[i].save(os.path.join(augmentor_image.output_directory, save_name))
             except IOError as e:
@@ -223,6 +216,158 @@ class Pipeline(object):
         # for the generator functions.  This will be fixed in a future
         # version.
         return images[0]
+
+    def _myexecute(self, augmentor_image, save_to_disk=True):
+        """
+        Private method. Used to pass an image through the current pipeline,
+        and return the augmented image.
+
+        The returned image can then either be saved to disk or simply passed
+        back to the user. Currently this is fixed to True, as Augmentor
+        has only been implemented to save to disk at present.
+
+        :param augmentor_image: The image to pass through the pipeline.
+        :param save_to_disk: Whether to save the image to disk. Currently
+         fixed to true.
+        :type augmentor_image: :class:`ImageUtilities.AugmentorImage`
+        :type save_to_disk: Boolean
+        :return: The augmented image.
+        """
+        # self.image_counter += 1  # TODO: See if I can remove this...
+
+        images = []
+
+        if augmentor_image.image_path is not None:
+            images.append(Image.open(augmentor_image.image_path))
+
+        images2 = []
+        if augmentor_image.ground_truth is not None:
+            if isinstance(augmentor_image.ground_truth, list):
+                for image in augmentor_image.ground_truth:
+                    images2.append(Image.open(image))
+            else:
+                images2.append(Image.open(augmentor_image.ground_truth))
+
+
+        # imagesori = images
+        # imagesori2 = images2
+
+
+        for operation in self.operations:
+            r = round(random.uniform(0, 1), 1)
+            if r <= operation.probability:
+                images = operation.perform_operation(images)
+                images2 = operation.perform_operation(images2)
+
+        # for operation in [self.operations[-1]]:
+        #     r = round(random.uniform(0, 1), 1)
+        #     if r <= operation.probability:
+        #         imagesori = operation.perform_operation(imagesori)
+        #         imagesori2 = operation.perform_operation(imagesori2)
+
+
+        if save_to_disk:
+            file_name = str(uuid.uuid4())
+            try:
+                # TODO: Add a 'coerce' parameter to force conversion to RGB for PNGA->JPEG saving.
+                # if image.mode != "RGB":
+                #     image = image.convert("RGB")
+                for i in range(len(images)):
+                    if i == 0:
+                        save_name = augmentor_image.class_label + "_original_" + file_name \
+                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+                    else:
+                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
+                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+            except IOError as e:
+                print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
+                print("You can change the save format using the set_save_format(save_format) function.")
+                print("By passing save_format=\"auto\", Augmentor can save in the correct format automatically.")
+
+        # Currently we return only the first image if it is a list
+        # for the generator functions.  This will be fixed in a future
+        # version.
+        # return images[0],images2[0]
+        return images[0],images2[0]
+
+    def _myexecute_debug(self, augmentor_image, save_to_disk=True):
+        """
+        Private method. Used to pass an image through the current pipeline,
+        and return the augmented image.
+
+        The returned image can then either be saved to disk or simply passed
+        back to the user. Currently this is fixed to True, as Augmentor
+        has only been implemented to save to disk at present.
+
+        :param augmentor_image: The image to pass through the pipeline.
+        :param save_to_disk: Whether to save the image to disk. Currently
+         fixed to true.
+        :type augmentor_image: :class:`ImageUtilities.AugmentorImage`
+        :type save_to_disk: Boolean
+        :return: The augmented image.
+        """
+        # self.image_counter += 1  # TODO: See if I can remove this...
+
+        images = []
+
+        if augmentor_image.image_path is not None:
+            images.append(Image.open(augmentor_image.image_path))
+
+        images2 = []
+        if augmentor_image.ground_truth is not None:
+            if isinstance(augmentor_image.ground_truth, list):
+                for image in augmentor_image.ground_truth:
+                    images2.append(Image.open(image))
+            else:
+                images2.append(Image.open(augmentor_image.ground_truth))
+
+
+        imagesori = images
+        imagesori2 = images2
+
+
+        for operation in self.operations:
+            r = round(random.uniform(0, 1), 1)
+            if r <= operation.probability:
+                images = operation.perform_operation(images)
+                images2 = operation.perform_operation(images2)
+
+        for operation in [self.operations[-1]]:
+            r = round(random.uniform(0, 1), 1)
+            if r <= operation.probability:
+                imagesori = operation.perform_operation(imagesori)
+                imagesori2 = operation.perform_operation(imagesori2)
+
+
+        if save_to_disk:
+            file_name = str(uuid.uuid4())
+            try:
+                # TODO: Add a 'coerce' parameter to force conversion to RGB for PNGA->JPEG saving.
+                # if image.mode != "RGB":
+                #     image = image.convert("RGB")
+                for i in range(len(images)):
+                    if i == 0:
+                        save_name = augmentor_image.class_label + "_original_" + file_name \
+                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+                    else:
+                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
+                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
+            except IOError as e:
+                print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
+                print("You can change the save format using the set_save_format(save_format) function.")
+                print("By passing save_format=\"auto\", Augmentor can save in the correct format automatically.")
+
+        # Currently we return only the first image if it is a list
+        # for the generator functions.  This will be fixed in a future
+        # version.
+        # return images[0],images2[0]
+        return images[0],images2[0],imagesori[0],imagesori2[0]
+
+
 
     def _execute_with_array(self, image):
         """
@@ -254,8 +399,8 @@ class Pipeline(object):
         :attr:`save_format="JPEG"` or :attr:`save_format="JPG"`,
         Augmentor will attempt to save the files using the
         JPEG format, which may result in errors if the file cannot
-        be saved in this format, such as trying to save PNG images
-        with an alpha channel as JPEG.
+        be saved in this format, such as PNG images with an alpha
+        channel.
 
         :param save_format: The save format to save the images
          when writing to disk.
@@ -395,6 +540,9 @@ class Pipeline(object):
             # batch = np.ndarray((batch_size, 28, 28, 1))
 
             X = []
+            Xmask = []
+            Xori = []
+            Xmaskori = []
             y = []
 
             for i in range(batch_size):
@@ -404,7 +552,17 @@ class Pipeline(object):
 
                 # Select random image, get image array and label
                 random_image_index = random.randint(0, len(self.augmentor_images)-1)
-                numpy_array = np.asarray(self._execute(self.augmentor_images[random_image_index], save_to_disk=False))
+                # n_sk1,n_sk2 = self._myexecute(self.augmentor_images[random_image_index], save_to_disk=False)
+                # numpy_array = np.asarray(n_sk1)
+                # numpy_array2 = np.asarray(n_sk2)
+
+
+                n_sk1,n_sk2 = self._myexecute(self.augmentor_images[random_image_index], save_to_disk=False)
+                numpy_array = np.asarray(n_sk1)
+                numpy_array2 = np.asarray(n_sk2)
+                # numpy_array3 = np.asarray(n_sk3)
+                # numpy_array4 = np.asarray(n_sk4)
+                
                 label = self.augmentor_images[random_image_index].categorical_label
 
                 # Reshape
@@ -413,25 +571,192 @@ class Pipeline(object):
 
                 if np.ndim(numpy_array) == 2:
                     l = 1
+                    l2 = 1
                 else:
                     l = np.shape(numpy_array)[2]
+                    l2 = np.shape(numpy_array2)[2]
+
+                # print(numpy_array.shape)
+                # print(numpy_array2.shape)
 
                 if image_data_format == "channels_last":
                     numpy_array = numpy_array.reshape(w, h, l)
+                    numpy_array2 = numpy_array2.reshape(w, h, l2)
+                    # numpy_array3 = numpy_array3.reshape(w, h, l)
+                    # numpy_array4 = numpy_array4.reshape(w, h, l2)
                 elif image_data_format == "channels_first":
                     numpy_array = numpy_array.reshape(l, w, h)
+                    numpy_array2 = numpy_array2.reshape(l2, w, h)
+                    # numpy_array3 = numpy_array3.reshape(l, w, h)
+                    # numpy_array4 = numpy_array4.reshape(l2, w, h)
 
                 X.append(numpy_array)
+                Xmask.append(numpy_array2)
+                # Xori.append(numpy_array3)
+                # Xmaskori.append(numpy_array4)
                 y.append(label)
 
             X = np.asarray(X)
+            Xmask = np.asarray(Xmask)
+            # Xori = np.asarray(Xori)
+            # Xmaskori = np.asarray(Xmaskori)
             y = np.asarray(y)
 
             if scaled:
                 X = X.astype('float32')
-                X /= 255
+                # X /= 255
+                Xmask = Xmask.astype('float32')
+                Xmask /= 255
+                # Xori = Xori.astype('float32')
+                # Xori /= 255
+                # Xmaskori = Xmaskori.astype('float32')
+                # Xmaskori /= 255
 
-            yield (X, y)
+            X = X[:,:,:,0:3]
+            Xmask = Xmask[:,:,:,0]
+            Xmask = Xmask[:,:,:,None]
+
+            # Xori = Xori[:,:,:,0:3]
+            # Xmaskori = Xmaskori[:,:,:,0]
+            # Xmaskori = Xmaskori[:,:,:,None]
+
+
+            yield (X, Xmask)
+
+
+    def keras_generator_debug(self, batch_size, scaled=True, image_data_format="channels_last"):
+        """
+        Returns an image generator that will sample from the current pipeline
+        indefinitely, as long as it is called.
+
+        .. warning::
+         This function returns images from the current pipeline
+         **with replacement**.
+
+        You must configure the generator to provide data in the same
+        format that Keras is configured for. You can use the functions
+        :func:`keras.backend.image_data_format()` and
+        :func:`keras.backend.set_image_data_format()` to get and set
+        Keras' image format at runtime.
+
+        .. code-block:: python
+
+            >>> from keras import backend as K
+            >>> K.image_data_format()
+            'channels_first'
+            >>> K.set_image_data_format('channels_last')
+            >>> K.image_data_format()
+            'channels_last'
+
+        By default, Augmentor uses ``'channels_last'``.
+
+        :param batch_size: The number of images to return per batch.
+        :type batch_size: Integer
+        :param scaled: True (default) if pixels are to be converted
+         to float32 values between 0 and 1, or False if pixels should be
+         integer values between 0-255.
+        :type scaled: Boolean
+        :param image_data_format: Either ``'channels_last'`` (default) or
+         ``'channels_first'``.
+        :type image_data_format: String
+        :return: An image generator.
+        """
+
+        if image_data_format not in ["channels_first", "channels_last"]:
+            warnings.warn("To work with Keras, must be one of channels_first or channels_last.")
+
+        while True:
+
+            # Randomly select 25 images for augmentation and yield the
+            # augmented images.
+            # X = np.array([])
+            # y = np.array([])
+            # The correct thing to do here is to pre-allocate
+            # batch = np.ndarray((batch_size, 28, 28, 1))
+
+            X = []
+            Xmask = []
+            Xori = []
+            Xmaskori = []
+            y = []
+
+            for i in range(batch_size):
+
+                # Pre-allocate
+                # batch[i:i+28]
+
+                # Select random image, get image array and label
+                random_image_index = random.randint(0, len(self.augmentor_images)-1)
+                # n_sk1,n_sk2 = self._myexecute(self.augmentor_images[random_image_index], save_to_disk=False)
+                # numpy_array = np.asarray(n_sk1)
+                # numpy_array2 = np.asarray(n_sk2)
+
+
+                n_sk1,n_sk2,n_sk3,n_sk4 = self._myexecute_debug(self.augmentor_images[random_image_index], save_to_disk=False)
+                numpy_array = np.asarray(n_sk1)
+                numpy_array2 = np.asarray(n_sk2)
+                numpy_array3 = np.asarray(n_sk3)
+                numpy_array4 = np.asarray(n_sk4)
+                
+                label = self.augmentor_images[random_image_index].categorical_label
+
+                # Reshape
+                w = numpy_array.shape[0]
+                h = numpy_array.shape[1]
+
+                if np.ndim(numpy_array) == 2:
+                    l = 1
+                    l2 = 1
+                else:
+                    l = np.shape(numpy_array)[2]
+                    l2 = np.shape(numpy_array2)[2]
+
+                # print(numpy_array.shape)
+                # print(numpy_array2.shape)
+
+                if image_data_format == "channels_last":
+                    numpy_array = numpy_array.reshape(w, h, l)
+                    numpy_array2 = numpy_array2.reshape(w, h, l2)
+                    numpy_array3 = numpy_array3.reshape(w, h, l)
+                    numpy_array4 = numpy_array4.reshape(w, h, l2)
+                elif image_data_format == "channels_first":
+                    numpy_array = numpy_array.reshape(l, w, h)
+                    numpy_array2 = numpy_array2.reshape(l2, w, h)
+                    numpy_array3 = numpy_array3.reshape(l, w, h)
+                    numpy_array4 = numpy_array4.reshape(l2, w, h)
+
+                X.append(numpy_array)
+                Xmask.append(numpy_array2)
+                Xori.append(numpy_array3)
+                Xmaskori.append(numpy_array4)
+                y.append(label)
+
+            X = np.asarray(X)
+            Xmask = np.asarray(Xmask)
+            Xori = np.asarray(Xori)
+            Xmaskori = np.asarray(Xmaskori)
+            y = np.asarray(y)
+
+            if scaled:
+                X = X.astype('float32')
+                # X /= 255
+                Xmask = Xmask.astype('float32')
+                Xmask /= 255
+                Xori = Xori.astype('float32')
+                Xori /= 255
+                Xmaskori = Xmaskori.astype('float32')
+                Xmaskori /= 255
+
+            X = X[:,:,:,0:3]
+            Xmask = Xmask[:,:,:,0]
+            Xmask = Xmask[:,:,:,None]
+
+            Xori = Xori[:,:,:,0:3]
+            Xmaskori = Xmaskori[:,:,:,0]
+            Xmaskori = Xmaskori[:,:,:,None]
+
+
+            yield (X, Xmask, Xori, Xmaskori)
 
     def keras_generator_from_array(self, images, labels, batch_size, scaled=True, image_data_format="channels_last"):
         """
@@ -1533,48 +1858,3 @@ class Pipeline(object):
             paths.append((augmentor_image.image_path, augmentor_image.ground_truth))
 
         return paths
-
-class DataFramePipeline(Pipeline):
-    def __init__(self, source_dataframe, image_col, category_col, output_directory="output", save_format=None):
-        """
-        Create a new Pipeline object pointing to dataframe containing the paths
-        to your original image dataset.
-
-        Create a new Pipeline object, using the :attr:`source_dataframe`
-        and the columns :attr:`image_col` for the path of the image and
-        :attr:`category_col` for the name of the cateogry
-
-        :param source_dataframe: A Pandas DataFrame where the images are located
-        :param output_directory: Specifies where augmented images should be
-         saved to the disk. Default is the absolute path
-        :param save_format: The file format to use when saving newly created,
-         augmented images. Default is JPEG. Legal options are BMP, PNG, and
-         GIF.
-        :return: A :class:`Pipeline` object.
-        """
-        super(DataFramePipeline, self).__init__(source_directory = None,
-                                                output_directory=output_directory,
-                                                save_format=save_format)
-        self._populate(source_dataframe,
-                  image_col,
-                  category_col,
-                  output_directory,
-                  save_format)
-
-    def _populate(self,
-                  source_dataframe,
-                  image_col,
-                  category_col,
-                  output_directory,
-                  save_format):
-        # Assume we have an absolute path for the output
-        # Scan the directory that user supplied.
-        self.augmentor_images, self.class_labels = scan_dataframe(source_dataframe,
-                                                                   image_col,
-                                                                   category_col,
-                                                                  output_directory)
-
-        self._check_images(output_directory)
-
-
-
