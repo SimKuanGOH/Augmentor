@@ -26,6 +26,7 @@ import warnings
 import numbers
 import numpy as np
 
+import shutil
 from tqdm import tqdm
 from PIL import Image
 
@@ -114,6 +115,7 @@ class Pipeline(object):
         :return: None
         """
 
+
         # Check if the source directory for the original images to augment exists at all
         if not os.path.exists(source_directory):
             raise IOError("The source directory you specified does not exist.")
@@ -126,6 +128,8 @@ class Pipeline(object):
         # Get absolute path for output
         abs_output_directory = output_directory#os.path.join(source_directory, output_directory)
 
+
+
         # Scan the directory that user supplied.
         self.augmentor_images, self.class_labels = scan(source_directory, abs_output_directory)
 
@@ -136,6 +140,13 @@ class Pipeline(object):
                     os.makedirs(abs_output_directory)
                 except IOError:
                     print("Insufficient rights to read or write output directory (%s)" % abs_output_directory)
+        
+            else:
+                ## Try to remove tree; if failed show an error using try...except on screen
+                shutil.rmtree(abs_output_directory)
+                os.makedirs(abs_output_directory)
+                print ("created AugData Dir")
+
         else:
             for class_label in self.class_labels:
                 if not os.path.exists(os.path.join(abs_output_directory, str(class_label[0]))):
@@ -274,6 +285,7 @@ class Pipeline(object):
             if not os.path.exists(savedir):
                 os.makedirs(savedir)
                 print ("created AugData Dir")
+                        
             if not os.path.exists(os.path.join(savedir,'images')):
                 os.makedirs(os.path.join(savedir,'images'))
                 print ("created AugData images Dir")
