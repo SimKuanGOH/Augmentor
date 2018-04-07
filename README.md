@@ -22,6 +22,7 @@ p.zoom_random(probability=0.5, percentage_area=0.8)
 p.flip_top_bottom(probability=0.5)
 p.sample(50)
 
+### Generators for Keras
 g = p.keras_generator(batch_size=128)
 images, labels = next(g)
 ```
