@@ -229,7 +229,105 @@ class Pipeline(object):
         # version.
         return images[0]
 
-    def _myexecute(self, augmentor_image, save_to_disk=True):
+    # def _myexecute(self, augmentor_image, save_to_disk=True):
+    #     """
+    #     Private method. Used to pass an image through the current pipeline,
+    #     and return the augmented image.
+
+    #     The returned image can then either be saved to disk or simply passed
+    #     back to the user. Currently this is fixed to True, as Augmentor
+    #     has only been implemented to save to disk at present.
+
+    #     :param augmentor_image: The image to pass through the pipeline.
+    #     :param save_to_disk: Whether to save the image to disk. Currently
+    #      fixed to true.
+    #     :type augmentor_image: :class:`ImageUtilities.AugmentorImage`
+    #     :type save_to_disk: Boolean
+    #     :return: The augmented image.
+    #     """
+    #     # self.image_counter += 1  # TODO: See if I can remove this...
+
+    #     images = []
+
+    #     if augmentor_image.image_path is not None:
+    #         images.append(Image.open(augmentor_image.image_path))
+
+    #     images2 = []
+    #     if augmentor_image.ground_truth is not None:
+    #         if isinstance(augmentor_image.ground_truth, list):
+    #             for image in augmentor_image.ground_truth:
+    #                 images2.append(Image.open(image))
+    #         else:
+    #             images2.append(Image.open(augmentor_image.ground_truth))
+
+
+    #     # imagesori = images
+    #     # imagesori2 = images2
+
+
+    #     for operation in self.operations:
+    #         r = round(random.uniform(0, 1), 1)
+    #         if r <= operation.probability:
+    #             images = operation.perform_operation(images)
+    #             images2 = operation.perform_operation(images2)
+
+    #     # for operation in [self.operations[-1]]:
+    #     #     r = round(random.uniform(0, 1), 1)
+    #     #     if r <= operation.probability:
+    #     #         imagesori = operation.perform_operation(imagesori)
+    #     #         imagesori2 = operation.perform_operation(imagesori2)
+
+
+    #     if save_to_disk:
+
+    #         savedir = augmentor_image.output_directory
+
+    #         if not os.path.exists(savedir):
+    #             os.makedirs(savedir)
+    #             print ("created AugData Dir")
+                        
+    #         if not os.path.exists(os.path.join(savedir,'images')):
+    #             os.makedirs(os.path.join(savedir,'images'))
+    #             print ("created AugData images Dir")
+    #         if not os.path.exists(os.path.join(savedir,'masks')):
+    #             os.makedirs(os.path.join(savedir,'masks'))
+    #             print ("created AugData masks Dir")
+
+
+    #         file_name = str(uuid.uuid4())
+    #         try:
+    #             # TODO: Add a 'coerce' parameter to force conversion to RGB for PNGA->JPEG saving.
+    #             # if image.mode != "RGB":
+    #             #     image = image.convert("RGB")
+    #             for i in range(len(images)):
+    #                 if i == 0:
+    #                     # save_name = augmentor_image.class_label + "_original_" + file_name \
+    #                     #             + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+    #                     save_name = file_name \
+    #                                 + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+    #                     myimg_path = os.path.join(augmentor_image.output_directory,"images")
+    #                     images[i].save(os.path.join(myimg_path, save_name))
+    #                     myimg_path2 = os.path.join(augmentor_image.output_directory,"masks")
+    #                     images2[i].save(os.path.join(myimg_path2, save_name))
+    #                 else:
+    #                     save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
+    #                                 + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+    #                     myimg_path = os.path.join(augmentor_image.output_directory,"masks")            
+    #                     images[i].save(os.path.join(myimg_path, save_name))
+    #         except IOError as e:
+    #             print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
+    #             print("You can change the save format using the set_save_format(save_format) function.")
+    #             print("By passing save_format=\"auto\", Augmentor can save in the correct format automatically.")
+
+    #     # Currently we return only the first image if it is a list
+    #     # for the generator functions.  This will be fixed in a future
+    #     # version.
+    #     # return images[0],images2[0]
+    #     return images[0],images2[0]
+
+
+
+    def _myexecute_fix(self, augmentor_image, save_to_disk=True):
         """
         Private method. Used to pass an image through the current pipeline,
         and return the augmented image.
@@ -252,13 +350,13 @@ class Pipeline(object):
         if augmentor_image.image_path is not None:
             images.append(Image.open(augmentor_image.image_path))
 
-        images2 = []
+        # images = []
         if augmentor_image.ground_truth is not None:
             if isinstance(augmentor_image.ground_truth, list):
                 for image in augmentor_image.ground_truth:
-                    images2.append(Image.open(image))
+                    images.append(Image.open(image))
             else:
-                images2.append(Image.open(augmentor_image.ground_truth))
+                images.append(Image.open(augmentor_image.ground_truth))
 
 
         # imagesori = images
@@ -269,7 +367,7 @@ class Pipeline(object):
             r = round(random.uniform(0, 1), 1)
             if r <= operation.probability:
                 images = operation.perform_operation(images)
-                images2 = operation.perform_operation(images2)
+                # images2 = operation.perform_operation(images2)
 
         # for operation in [self.operations[-1]]:
         #     r = round(random.uniform(0, 1), 1)
@@ -307,13 +405,15 @@ class Pipeline(object):
                                     + "." + (self.save_format if self.save_format else augmentor_image.file_format)
                         myimg_path = os.path.join(augmentor_image.output_directory,"images")
                         images[i].save(os.path.join(myimg_path, save_name))
+                        # myimg_path2 = os.path.join(augmentor_image.output_directory,"masks")
+                        # images2[i].save(os.path.join(myimg_path2, save_name))
+                    else:
+                        save_name = file_name \
+                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
+                        # myimg_path = os.path.join(augmentor_image.output_directory,"images")
+                        # images[i].save(os.path.join(myimg_path, save_name))
                         myimg_path2 = os.path.join(augmentor_image.output_directory,"masks")
-                        images2[i].save(os.path.join(myimg_path2, save_name))
-                    else:
-                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
-                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
-                        myimg_path = os.path.join(augmentor_image.output_directory,"masks")            
-                        images[i].save(os.path.join(myimg_path, save_name))
+                        images[i].save(os.path.join(myimg_path2, save_name))
             except IOError as e:
                 print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
                 print("You can change the save format using the set_save_format(save_format) function.")
@@ -323,82 +423,9 @@ class Pipeline(object):
         # for the generator functions.  This will be fixed in a future
         # version.
         # return images[0],images2[0]
-        return images[0],images2[0]
+        return images[0],images[1]
 
-    def _myexecute_debug(self, augmentor_image, save_to_disk=True):
-        """
-        Private method. Used to pass an image through the current pipeline,
-        and return the augmented image.
-
-        The returned image can then either be saved to disk or simply passed
-        back to the user. Currently this is fixed to True, as Augmentor
-        has only been implemented to save to disk at present.
-
-        :param augmentor_image: The image to pass through the pipeline.
-        :param save_to_disk: Whether to save the image to disk. Currently
-         fixed to true.
-        :type augmentor_image: :class:`ImageUtilities.AugmentorImage`
-        :type save_to_disk: Boolean
-        :return: The augmented image.
-        """
-        # self.image_counter += 1  # TODO: See if I can remove this...
-
-        images = []
-
-        if augmentor_image.image_path is not None:
-            images.append(Image.open(augmentor_image.image_path))
-
-        images2 = []
-        if augmentor_image.ground_truth is not None:
-            if isinstance(augmentor_image.ground_truth, list):
-                for image in augmentor_image.ground_truth:
-                    images2.append(Image.open(image))
-            else:
-                images2.append(Image.open(augmentor_image.ground_truth))
-
-
-        imagesori = images
-        imagesori2 = images2
-
-
-        for operation in self.operations:
-            r = round(random.uniform(0, 1), 1)
-            if r <= operation.probability:
-                images = operation.perform_operation(images)
-                images2 = operation.perform_operation(images2)
-
-        for operation in [self.operations[-1]]:
-            r = round(random.uniform(0, 1), 1)
-            if r <= operation.probability:
-                imagesori = operation.perform_operation(imagesori)
-                imagesori2 = operation.perform_operation(imagesori2)
-
-
-        if save_to_disk:
-            file_name = str(uuid.uuid4())
-            try:
-                # TODO: Add a 'coerce' parameter to force conversion to RGB for PNGA->JPEG saving.
-                # if image.mode != "RGB":
-                #     image = image.convert("RGB")
-                for i in range(len(images)):
-                    if i == 0:
-                        save_name = augmentor_image.class_label + "_original_" + file_name \
-                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
-                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
-                    else:
-                        save_name = "_groundtruth_(" + str(i) + ")_" + augmentor_image.class_label + "_" + file_name \
-                                    + "." + (self.save_format if self.save_format else augmentor_image.file_format)
-                        images[i].save(os.path.join(augmentor_image.output_directory, save_name))
-            except IOError as e:
-                print("Error writing %s, %s. Change save_format to PNG?" % (file_name, e.message))
-                print("You can change the save format using the set_save_format(save_format) function.")
-                print("By passing save_format=\"auto\", Augmentor can save in the correct format automatically.")
-
-        # Currently we return only the first image if it is a list
-        # for the generator functions.  This will be fixed in a future
-        # version.
-        # return images[0],images2[0]
-        return images[0],images2[0],imagesori[0],imagesori2[0]
+    
 
 
 
@@ -511,7 +538,7 @@ class Pipeline(object):
         while sample_count <= n:
             for augmentor_image in self.augmentor_images:
                 if sample_count <= n:
-                    self._myexecute(augmentor_image)
+                    self._myexecute_fix(augmentor_image)
                     file_name_to_print = os.path.basename(augmentor_image.image_path)
                     # This is just to shorten very long file names which obscure the progress bar.
                     if len(file_name_to_print) >= 30:
@@ -629,7 +656,7 @@ class Pipeline(object):
                 # numpy_array2 = np.asarray(n_sk2)
 
 
-                n_sk1,n_sk2 = self._myexecute(self.augmentor_images[random_image_index], save_to_disk=False)
+                n_sk1,n_sk2 = self._myexecute_fix(self.augmentor_images[random_image_index], save_to_disk=False)
                 numpy_array = np.asarray(n_sk1)
                 numpy_array2 = np.asarray(n_sk2)
                 # numpy_array3 = np.asarray(n_sk3)
